@@ -1,12 +1,12 @@
-.. java-symbol-solver documentation master file, created by
-   sphinx-quickstart on Fri Nov 13 09:38:07 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+The Java symbol solver
+======================
 
-java-symbol-solver
-==================
+This project permits to analyze Java source code for all sort of goals:
+* find about method usages
+* support automated refactoring of java code
+* identify violation of best practices
 
-The java-symbol-solver permits you to resolve symbols in Java source code. It is intended to be used with JavaParser.
+More specifically the Java symbol solver permits you to resolve symbols in Java source code. It is intended to be used with JavaParser.
 After JavaParser has produced an Abstract Syntax Tree (AST) for a source file java-symbol-solver can be used to do
 things like:
 
