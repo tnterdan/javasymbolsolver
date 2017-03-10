@@ -27,11 +27,14 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.symbolsolver.javaparser.Navigator;
 import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFactory;
 import com.github.javaparser.symbolsolver.model.declarations.TypeDeclaration;
 import com.github.javaparser.symbolsolver.model.declarations.ValueDeclaration;
 import com.github.javaparser.symbolsolver.model.methods.MethodUsage;
 import com.github.javaparser.symbolsolver.model.resolution.SymbolReference;
 import com.github.javaparser.symbolsolver.model.typesystem.ReferenceType;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.MemoryTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import org.junit.Test;
 
@@ -128,5 +131,21 @@ public class JavaParserFacadeResolutionTest extends AbstractResolutionTest {
         com.github.javaparser.symbolsolver.model.typesystem.Type type = JavaParserFacade.get(new ReflectionTypeSolver()).getType(scope);
         assertEquals(true, type.isReferenceType());
         assertEquals("java.util.Scanner", type.asReferenceType().getQualifiedName());
+    }
+
+    // Issue 112
+    @Test
+    public void solveStaticFieldOfInternalClass() {
+        String codeSettings = "package a.b; class Settings { class Global { public static final String AUTO_TIME = \"auto_time\"; }}";
+        String codeUser = "package foo.bar; import a.b.Settings; class Usage { String s = Settings.Global.AUTO_TIME; }";
+        MemoryTypeSolver memoryTypeSolver = new MemoryTypeSolver();
+        memoryTypeSolver.addDeclaration("a.b.Settings", JavaParserFacade.get(new ReflectionTypeSolver()).getTypeDeclaration(
+                JavaParser.parse(codeSettings).getClassByName("Settings").get()
+        ));
+        CompilationUnit cu = JavaParser.parse(codeUser);
+        FieldDeclaration fieldDeclaration = Navigator.findNodeOfGivenClass(cu, FieldDeclaration.class);
+        com.github.javaparser.symbolsolver.model.typesystem.Type jssType = JavaParserFacade.get(new CombinedTypeSolver(new ReflectionTypeSolver(), memoryTypeSolver)).getType(fieldDeclaration.getVariables().get(0).getInitializer().get());
+        assertEquals(true, jssType.isReferenceType());
+        assertEquals("java.lang.String", jssType.asReferenceType().getQualifiedName());
     }
 }
