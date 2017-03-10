@@ -1,5 +1,6 @@
 package com.github.javaparser.symbolsolver.javaparsermodel;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
@@ -153,22 +154,55 @@ public class TypeExtractor extends DefaultVisitorAdapter {
         return node.getInner().get().accept(this, solveLambdas);
     }
 
+    private Type resolveFieldWithScope(Node contextNode, Expression scope, String name) {
+        // The scope could be a type or a value
+        if (scope instanceof NameExpr) {
+            NameExpr staticValue = (NameExpr) scope;
+            SymbolReference<TypeDeclaration> typeAccessedStatically = JavaParserFactory.getContext(contextNode, typeSolver).solveType(staticValue.toString(), typeSolver);
+            if (typeAccessedStatically.isSolved()) {
+                return resolveFieldWithScope((ReferenceTypeDeclaration) typeAccessedStatically.getCorrespondingDeclaration(), name);
+            } else {
+                Optional<Value> value = new SymbolSolver(typeSolver).solveSymbolAsValue(staticValue.getNameAsString(), scope);
+                if (value.isPresent()) {
+                    return value.get().getType();
+                } else {
+                    throw new UnsolvedSymbolException(((NameExpr) scope).getNameAsString());
+                }
+            }
+        } else if (scope instanceof FieldAccessExpr) {
+            if (((FieldAccessExpr) scope).getScope().isPresent()) {
+                Expression scopeOfScope = ((FieldAccessExpr) scope).getScope().get();
+                Type typeOfScope = resolveFieldWithScope(scopeOfScope, scopeOfScope, ((FieldAccessExpr) scope).getName().getIdentifier());
+                return resolveFieldWithScope(typeOfScope.asReferenceType().getTypeDeclaration(), name);
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
+        throw new UnsupportedOperationException("Scope "+scope.getClass().getCanonicalName());
+    }
+
+    private Type resolveFieldWithScope(ReferenceTypeDeclaration referenceTypeDeclaration, String name) {
+        if (referenceTypeDeclaration.hasField(name)) {
+            return referenceTypeDeclaration.getField(name).getType();
+        } else if (referenceTypeDeclaration.hasInternalType(name)) {
+            return new ReferenceTypeImpl( referenceTypeDeclaration.getInternalType(name), typeSolver);
+        } else {
+            throw new UnsolvedSymbolException(name);
+        }
+    }
+
     @Override
     public Type visit(FieldAccessExpr node, Boolean solveLambdas) {
         // We should understand if this is a static access
-        if (node.getScope().isPresent() && node.getScope().get() instanceof NameExpr) {
-            NameExpr staticValue = (NameExpr) node.getScope().get();
-            SymbolReference<TypeDeclaration> typeAccessedStatically = JavaParserFactory.getContext(node, typeSolver).solveType(staticValue.toString(), typeSolver);
-            if (typeAccessedStatically.isSolved()) {
-                // TODO here maybe we have to substitute type typeParametersValues
-                return ((ReferenceTypeDeclaration) typeAccessedStatically.getCorrespondingDeclaration()).getField(node.getField().getId()).getType();
-            }
-        } else if (node.getScope().isPresent() && node.getScope().get().toString().indexOf('.') > 0) {
+        if (node.getScope().isPresent() && node.getScope().get().toString().indexOf('.') > 0) {
             // try to find fully qualified name
             SymbolReference<ReferenceTypeDeclaration> sr = typeSolver.tryToSolveType(node.getScope().get().toString());
             if (sr.isSolved()) {
                 return sr.getCorrespondingDeclaration().getField(node.getField().getId()).getType();
             }
+        }
+        if (node.getScope().isPresent()) {
+            return resolveFieldWithScope(node, node.getScope().get(), node.getNameAsString());
         }
         Optional<Value> value = null;
         try {

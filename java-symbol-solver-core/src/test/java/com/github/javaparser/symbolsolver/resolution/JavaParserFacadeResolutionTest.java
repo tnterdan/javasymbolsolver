@@ -148,4 +148,19 @@ public class JavaParserFacadeResolutionTest extends AbstractResolutionTest {
         assertEquals(true, jssType.isReferenceType());
         assertEquals("java.lang.String", jssType.asReferenceType().getQualifiedName());
     }
+
+    @Test
+    public void solveStaticFieldOfInternalOfInternalClass() {
+        String codeSettings = "package a.b; class Settings { class Global { class Foo { public static final String AUTO_TIME = \"auto_time\"; }}}";
+        String codeUser = "package foo.bar; import a.b.Settings; class Usage { String s = Settings.Global.Foo.AUTO_TIME; }";
+        MemoryTypeSolver memoryTypeSolver = new MemoryTypeSolver();
+        memoryTypeSolver.addDeclaration("a.b.Settings", JavaParserFacade.get(new ReflectionTypeSolver()).getTypeDeclaration(
+                JavaParser.parse(codeSettings).getClassByName("Settings").get()
+        ));
+        CompilationUnit cu = JavaParser.parse(codeUser);
+        FieldDeclaration fieldDeclaration = Navigator.findNodeOfGivenClass(cu, FieldDeclaration.class);
+        com.github.javaparser.symbolsolver.model.typesystem.Type jssType = JavaParserFacade.get(new CombinedTypeSolver(new ReflectionTypeSolver(), memoryTypeSolver)).getType(fieldDeclaration.getVariables().get(0).getInitializer().get());
+        assertEquals(true, jssType.isReferenceType());
+        assertEquals("java.lang.String", jssType.asReferenceType().getQualifiedName());
+    }
 }

@@ -38,6 +38,14 @@ public interface TypeDeclaration extends Declaration {
         throw new UnsupportedOperationException("InternalTypes not available for " + this.getClass().getCanonicalName());
     }
 
+    default boolean hasInternalType(String name) {
+        return internalTypes().stream().anyMatch(it -> it.getName().equals(name));
+    }
+
+    default ReferenceTypeDeclaration getInternalType(String name) {
+        return internalTypes().stream().filter(it -> it.getName().equals(name)).findFirst().orElseThrow(() -> new IllegalArgumentException("No internal type named " + name));
+    }
+
     /**
      * Get the TypeDeclaration enclosing this declaration.
      *

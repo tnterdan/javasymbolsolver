@@ -73,6 +73,9 @@ public class FieldAccessContext extends AbstractJavaParserContext<FieldAccessExp
         Expression scope = wrappedNode.getScope().get();
         if (wrappedNode.getField().toString().equals(name)) {
             Type typeOfScope = JavaParserFacade.get(typeSolver).getType(scope);
+            if (typeOfScope == null) {
+                throw new RuntimeException("TypeOfScope should not be null");
+            }
             if (typeOfScope.isArray() && name.equals(ARRAY_LENGTH_FIELD_NAME)) {
                 return Optional.of(new Value(PrimitiveType.INT, ARRAY_LENGTH_FIELD_NAME));
             }
