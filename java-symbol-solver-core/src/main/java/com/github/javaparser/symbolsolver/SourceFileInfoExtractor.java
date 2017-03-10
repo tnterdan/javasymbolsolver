@@ -124,12 +124,14 @@ public class SourceFileInfoExtractor {
                     ok++;
                 } catch (UnsupportedOperationException upe) {
                     unsupported++;
+                    err.println("FAILED Line " + node.getRange().get().begin.line + ") " + node);
                     err.println(upe.getMessage());
-                    throw upe;
+                    //throw upe;
                 } catch (RuntimeException re) {
                     ko++;
+                    err.println("FAILED Line " + node.getRange().get().begin.line + ") " + node);
                     err.println(re.getMessage());
-                    throw re;
+                    //throw re;
                 }
             }
         }
