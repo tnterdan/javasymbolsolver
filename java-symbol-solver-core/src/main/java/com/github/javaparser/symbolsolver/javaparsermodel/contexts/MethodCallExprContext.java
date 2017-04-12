@@ -168,7 +168,27 @@ public class MethodCallExprContext extends AbstractJavaParserContext<MethodCallE
                 }
                 return SymbolReference.unsolved(MethodDeclaration.class);
             } else if (typeOfScope.isConstraint()){
-                return MethodResolutionLogic.solveMethodInType(typeOfScope.asConstraintType().getBound().asReferenceType().getTypeDeclaration(), name, argumentsTypes, typeSolver);
+                if (typeOfScope.asConstraintType().getBound().isReferenceType()) {
+                    return MethodResolutionLogic.solveMethodInType(
+                            typeOfScope.asConstraintType().getBound().asReferenceType().getTypeDeclaration(),
+                            name,
+                            argumentsTypes,
+                            typeSolver);
+                } else if (typeOfScope.asConstraintType().getBound().isTypeVariable()) {
+                    for (TypeParameterDeclaration.Bound bound :
+                            typeOfScope.asConstraintType().getBound().asTypeParameter().getBounds(typeSolver)) {
+                        SymbolReference<MethodDeclaration> res = MethodResolutionLogic.solveMethodInType(
+                                bound.getType().asReferenceType().getTypeDeclaration(),
+                                name,
+                                argumentsTypes,
+                                false,
+                                typeSolver);
+                        if (res.isSolved()) {
+                            return res;
+                        }
+                    }
+                }
+                return SymbolReference.unsolved(MethodDeclaration.class);
             } else {
                 return MethodResolutionLogic.solveMethodInType(typeOfScope.asReferenceType().getTypeDeclaration(), name, argumentsTypes, false, typeSolver);
             }
